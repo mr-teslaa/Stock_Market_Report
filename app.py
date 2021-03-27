@@ -14,11 +14,17 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 db = SQLAlchemy(app)
 
-#   generate a secret key for forms
-app.config['SECRET_KEY'] = '94692de71c05d2759ecc4bfd5d5ec4f0'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data.db'
-app.config['TEXT_FILE_UPLOAD'] = '/home/ubuntu/web-scrapping/static/text_files'
-app.config['ALLOWED_IMAGE_EXTENSION'] = 'TXT'
+ENV = 'server'
+
+if ENV == 'server':
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI')
+else:
+    #   generate a secret key for forms
+    app.config['SECRET_KEY'] = '94692de71c05d2759ecc4bfd5d5ec4f0'
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data.db'
+    app.config['TEXT_FILE_UPLOAD'] = '/home/ubuntu/web-scrapping/static/text_files'
+    app.config['ALLOWED_IMAGE_EXTENSION'] = 'TXT'
 
 
 class stock(db.Model):
@@ -175,4 +181,4 @@ def index(page_num):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)
