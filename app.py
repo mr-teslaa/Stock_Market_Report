@@ -14,17 +14,11 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 db = SQLAlchemy(app)
 
-ENV = 'server'
-
-if ENV == 'server':
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI')
-else:
-    #   generate a secret key for forms
-    app.config['SECRET_KEY'] = '94692de71c05d2759ecc4bfd5d5ec4f0'
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data.db'
-    app.config['TEXT_FILE_UPLOAD'] = '/home/ubuntu/web-scrapping/static/text_files'
-    app.config['ALLOWED_IMAGE_EXTENSION'] = 'TXT'
+#   generate a secret key for forms
+app.config['SECRET_KEY'] = '94692de71c05d2759ecc4bfd5d5ec4f0'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data.db'
+app.config['TEXT_FILE_UPLOAD'] = './static/text_files'
+app.config['ALLOWED_IMAGE_EXTENSION'] = 'TXT'
 
 
 class stock(db.Model):
@@ -72,13 +66,14 @@ class stock(db.Model):
 
 
 def extract_data_from_text(text_file):
-    f = open('./static/text_files/test.txt', 'r')
+    print('reload')
+    f = open('./static/text_files/{}'.format(text_file), 'r')
     st = ''
     for i in f:
         st += (i)
     f.close()
     lines = st.replace('===================R', '').replace('=', '').split('\n')
-
+    print(len(lines))
     all_data = []
     for line in range(6, len(lines), 2):
         temp = str(lines[line]).split('|')[1:]
@@ -132,6 +127,12 @@ def extract_data_from_text(text_file):
         db.session.add(row)
     db.session.commit()
 
+    try:
+        os.remove('./static/text_files/{}'.format(text_file))
+    except:
+        pass
+
+
     return all_data
 
 
@@ -153,6 +154,19 @@ def index(page_num):
     form = searchFile()
     threads = stock.query.order_by(stock.index.desc()).paginate(per_page=50, page=page_num, error_out=True)
 
+
+
+    if request.method == 'POST' and 'tag' in request.form:
+        tag = request.form["tag"]
+        search = "%{}%".format(tag)
+        threads = stock.query.filter(stock.STOCK_Symbol.like(search)).paginate(per_page=50, page=page_num, error_out=True)
+        return render_template('index.html', threads=threads, form=form, tag=tag)
+
+    return render_template('index.html', threads=threads, form=form)
+
+
+@app.route('/add_data', methods=['GET', 'POST'])
+def add_data():
     if request.method == "POST":
         if request.files:
             text = request.files["text"]
@@ -168,17 +182,9 @@ def index(page_num):
                 text.save(os.path.join(app.config['TEXT_FILE_UPLOAD'], filename))
                 extract_data_from_text(filename)
                 flash('Your file submitted successfully', 'success')
-            return render_template('index.html', threads=threads, form=form)
-
-    if request.method == 'POST' and 'tag' in request.form:
-        tag = request.form["tag"]
-        search = "%{}%".format(tag)
-        threads = stock.query.filter(stock.STOCK_Symbol.like(search)).paginate(per_page=50, page=page_num, error_out=True)
-        return render_template('index.html', threads=threads, form=form, tag=tag)
-
-    return render_template('index.html', threads=threads, form=form)
 
 
+    return redirect(url_for('index'))
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=True)
